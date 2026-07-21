@@ -1,0 +1,6 @@
+.form { display: grid; gap: 16px; max-width: 360px; }
+.form label { display: grid; gap: 8px; color: #13294b; font-weight: 700; }
+.form input { border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; padding: 10px 12px; }
+.form button { background: #2563eb; border: 0; border-radius: 8px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 11px 16px; }
+.form button:disabled { cursor: wait; opacity: .65; }
+.message { color: #b91c1c; margin: 0; }

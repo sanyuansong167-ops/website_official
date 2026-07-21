@@ -1,0 +1,112 @@
+.contactForm {
+  display: grid;
+  padding: var(--space-8);
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
+  gap: var(--space-6);
+}
+
+.formHeader p,
+.formHeader h2,
+.formField label,
+.formField span,
+.formField small,
+.feedback {
+  margin: 0;
+}
+
+.formHeader p {
+  color: var(--color-brand-600);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.formHeader h2 {
+  margin-block-start: var(--space-2);
+  font-size: var(--font-size-heading-md);
+  line-height: var(--line-height-tight);
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.formField {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.formField label {
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.formField input,
+.formField textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-3);
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  resize: vertical;
+}
+
+.formField textarea {
+  min-height: 8rem;
+}
+
+.formField span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  text-align: end;
+}
+
+.formField small,
+.feedback[data-status="error"] {
+  color: var(--color-status-error);
+}
+
+.submitButton {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-600);
+  color: var(--color-surface-raised);
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color var(--motion-fast);
+}
+
+.submitButton:hover:not(:disabled) {
+  background: var(--color-brand-700);
+}
+
+.submitButton:disabled {
+  cursor: not-allowed;
+  opacity: var(--opacity-muted);
+}
+
+.feedback {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.feedback[data-status="success"] {
+  color: var(--color-brand-700);
+}
+
+@media (max-width: 767px) {
+  .contactForm {
+    padding: var(--space-6);
+  }
+
+  .fieldGrid {
+    grid-template-columns: 1fr;
+  }
+}

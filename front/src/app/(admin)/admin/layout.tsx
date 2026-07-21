@@ -1,0 +1,14 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+export const metadata: Metadata = {
+  robots: {
+    follow: false,
+    index: false,
+  },
+  title: "官网编辑器",
+};
+
+export default function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return children;
+}

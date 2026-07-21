@@ -1,0 +1,54 @@
+:root {
+  --color-brand-600: #2f63e9;
+  --color-brand-700: #1f4fca;
+  --color-navy-950: #0b1c3a;
+  --color-text-primary: #10213f;
+  --color-text-secondary: #52647f;
+  --color-surface-base: #f7f9fc;
+  --color-surface-raised: #ffffff;
+  --color-border-subtle: #dbe4f0;
+  --color-status-warning: #a85a00;
+  --color-status-error: #b42318;
+  --color-focus-ring: #2f63e9;
+  --color-overlay-backdrop: rgb(16 24 40 / 48%);
+
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
+  --font-size-body: 1rem;
+  --font-size-caption: 0.875rem;
+  --font-size-heading-sm: 1.25rem;
+  --font-size-heading-md: 2rem;
+  --font-size-title: clamp(2rem, 5vw, 3.5rem);
+  --line-height-body: 1.75;
+  --line-height-tight: 1.4;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-20: 5rem;
+
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --shadow-card: 0 0.75rem 2rem rgb(15 42 86 / 8%);
+  --container-max-width: 75rem;
+  --page-padding-desktop: 1.5rem;
+  --page-padding-mobile: 1rem;
+  --motion-fast: 160ms;
+  --opacity-muted: 0.55;
+  --editor-toolbar-height: 5rem;
+  --editor-sidebar-width: 15rem;
+  --editor-sidebar-compact-width: 13rem;
+  --editor-panel-width: 20rem;
+  --editor-status-max-width: 30rem;
+  --editor-canvas-max-width: 64rem;
+  --editor-canvas-min-height: 28rem;
+  --content-measure-wide: 48rem;
+  --content-measure-body: 42rem;
+  --line-height-display: 1.2;
+  --z-index-sticky: 10;
+  --z-index-hero-media: -2;
+  --z-index-hero-overlay: -1;
+}

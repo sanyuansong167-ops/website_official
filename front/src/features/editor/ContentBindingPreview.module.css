@@ -1,0 +1,49 @@
+.contentBindingPreview {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-base);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.heading span,
+.status,
+.resultList small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.resultList,
+.issueList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+
+.resultList li {
+  padding-inline-start: var(--space-1);
+}
+
+.resultList strong,
+.resultList small {
+  display: block;
+}
+
+.issueList,
+.error {
+  color: var(--color-status-error);
+}
+
+.status,
+.error {
+  margin: 0;
+}

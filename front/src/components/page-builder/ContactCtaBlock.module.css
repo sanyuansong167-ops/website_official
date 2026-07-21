@@ -1,0 +1,92 @@
+.contactCtaBlock {
+  background: var(--color-navy-950);
+  color: var(--color-surface-raised);
+}
+
+.contactCtaBlock[data-theme="light"] {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.contactCtaBlock[data-spacing="compact"] {
+  padding-block: var(--space-8);
+}
+
+.contactCtaBlock[data-spacing="standard"] {
+  padding-block: var(--space-12);
+}
+
+.contactCtaBlock[data-spacing="large"] {
+  padding-block: var(--space-20);
+}
+
+.inner {
+  display: flex;
+  max-width: var(--content-measure-wide);
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.inner h2,
+.inner p {
+  margin: 0;
+}
+
+.inner h2 {
+  font-size: var(--font-size-heading-md);
+  line-height: var(--line-height-tight);
+}
+
+.inner > p {
+  margin-block-start: var(--space-4);
+  color: var(--color-border-subtle);
+}
+
+.contactCtaBlock[data-theme="light"] .inner > p {
+  color: var(--color-text-secondary);
+}
+
+.action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-block-start: var(--space-6);
+  padding-inline: var(--space-6);
+  border: 0.0625rem solid var(--color-surface-raised);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-brand-700);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  transition: background-color var(--motion-fast), color var(--motion-fast);
+}
+
+.contactCtaBlock[data-theme="light"] .action {
+  border-color: var(--color-brand-600);
+  background: var(--color-brand-600);
+  color: var(--color-surface-raised);
+}
+
+.action:hover,
+.action:focus-visible {
+  background: var(--color-brand-600);
+  color: var(--color-surface-raised);
+}
+
+.contactCtaBlock[data-theme="light"] .action:hover,
+.contactCtaBlock[data-theme="light"] .action:focus-visible {
+  background: var(--color-brand-700);
+}
+
+.inner .validation {
+  color: var(--color-status-error);
+  font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .action {
+    width: 100%;
+  }
+}

@@ -1,0 +1,128 @@
+.fields {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field label,
+.fieldLabel,
+.linkField legend,
+.linkField > label:not(.checkbox) {
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea,
+.linkField input,
+.linkField select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-3);
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.field textarea {
+  line-height: var(--line-height-body);
+  resize: vertical;
+}
+
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+  border-color: var(--color-status-error);
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.field button:disabled,
+.linkField:disabled input,
+.linkField:disabled select {
+  background: var(--color-surface-base);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.field button {
+  min-height: 2.75rem;
+  padding-inline: var(--space-3);
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.mediaPreview {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-base);
+  overflow: hidden;
+}
+
+.mediaPreview img {
+  object-fit: cover;
+}
+
+.mediaActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.mediaActions button {
+  flex: 1;
+}
+
+.bindingPreview {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+
+.bindingPreview li {
+  padding-inline-start: var(--space-1);
+}
+
+.bindingPreview strong,
+.bindingPreview small {
+  display: block;
+}
+
+.field small {
+  color: var(--color-text-secondary);
+}
+
+.linkField {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 0.0625rem solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.checkbox {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checkbox input {
+  width: auto;
+  min-height: auto;
+}
+
+.error,
+.field .error {
+  color: var(--color-status-error);
+}

@@ -1,0 +1,16 @@
+.promiseBlock { background: #f5f8fc; padding-block: 4rem; }
+.promiseBlock[data-spacing="compact"] { padding-block: 2.5rem; }
+.promiseBlock[data-spacing="large"] { padding-block: 6rem; }
+.promiseBlock[data-theme="dark"] { background: #0b1f3a; color: #fff; }
+.heading { max-width: 48rem; }
+.heading h2 { font-size: clamp(2rem, 4vw, 3.25rem); margin: 0; }
+.heading p, .content { color: #526781; line-height: 1.8; }
+.promiseBlock[data-theme="dark"] .heading p,
+.promiseBlock[data-theme="dark"] .content { color: #c7d4e5; }
+.content { max-width: 52rem; }
+.tags { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; }
+.tags li { background: #fff; border: 1px solid #d9e2ee; border-radius: 1rem; display: grid; gap: .5rem; padding: 1.25rem; }
+.promiseBlock[data-theme="dark"] .tags li { background: #132c4f; border-color: #2f4d72; }
+.tags span { color: #526781; line-height: 1.6; }
+.promiseBlock[data-theme="dark"] .tags span { color: #c7d4e5; }
+@media (max-width: 767px) { .tags { grid-template-columns: 1fr; } }
