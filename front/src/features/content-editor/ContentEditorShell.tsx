@@ -2,20 +2,30 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ContentVersionHistoryDialog,
+  OfflineContentDialog,
+  PublishContentDialog,
+} from "@/features/content-editor/ContentLifecycleDialogs";
+import { ContentDraftPanels } from "@/features/content-editor/ContentDraftPanels";
 import { getContentResourceDefinition } from "@/features/content-editor/content-resource";
 import { contentDraftToForm, mergeContentDraftForm, type ContentDraftForm } from "@/features/content-editor/content-draft-form";
 import { getCsrfToken } from "@/services/admin-api";
 import {
   acquireContentLock,
+  createContentPreview,
   forceReleaseContentLock,
   getContentDraft,
   getContentLockConflict,
   heartbeatContentLock,
+  offlineContent,
+  publishContent,
   releaseContentLock,
+  rollbackContent,
   saveContentDraft,
 } from "@/services/content-editor-api";
 import type { AdminSession, CsrfToken } from "@/types/admin";
-import type { ContentDraft, ContentResourceKind } from "@/types/content-editor";
+import type { ContentDraft, ContentResourceKind, ContentVersion } from "@/types/content-editor";
 import styles from "./ContentEditorShell.module.css";
 
 type ContentEditorShellProps = {
@@ -46,6 +56,12 @@ type ForceReleaseState =
   | { status: "releasing" }
   | { message: string; status: "error" };
 
+type LifecycleState =
+  | { status: "idle" }
+  | { action: "offline" | "preview" | "publish" | "rollback"; status: "working" }
+  | { message: string; status: "success" }
+  | { message: string; status: "error" };
+
 const resourceLabels: Record<ContentResourceKind, string> = {
   case: "案例",
   product: "产品",
@@ -60,6 +76,10 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
   const [forceUnlockOpen, setForceUnlockOpen] = useState(false);
   const [forceUnlockReason, setForceUnlockReason] = useState("");
   const [forceReleaseState, setForceReleaseState] = useState<ForceReleaseState>({ status: "idle" });
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [offlineOpen, setOfflineOpen] = useState(false);
+  const [lifecycleState, setLifecycleState] = useState<LifecycleState>({ status: "idle" });
   const csrfRef = useRef<CsrfToken | null>(null);
   const lockTokenRef = useRef<string | null>(null);
   const label = resourceLabels[resourceKind];
@@ -74,7 +94,7 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
         const draft = await getContentDraft(resourceKind, resourceId);
         if (!active) return;
         setDraftState({ draft, status: "ready" });
-        setForm(contentDraftToForm(draft.draft));
+        setForm(contentDraftToForm(draft.draft, resourceKind));
         setSaveState({ status: "idle" });
       } catch (error) {
         if (active) setDraftState({ message: getSafeDraftError(error), status: "error" });
@@ -133,11 +153,14 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
   }, [resourceId, resourceKind]);
 
   const savedForm = useMemo(
-    () => (draftState.status === "ready" ? contentDraftToForm(draftState.draft.draft) : null),
-    [draftState],
+    () => (draftState.status === "ready" ? contentDraftToForm(draftState.draft.draft, resourceKind) : null),
+    [draftState, resourceKind],
   );
   const isDirty = form !== null && savedForm !== null && JSON.stringify(form) !== JSON.stringify(savedForm);
   const canSave = lockState.status === "editable" && draftState.status === "ready" && form !== null && isDirty && saveState.status !== "saving";
+  const lifecycleWorking = lifecycleState.status === "working";
+  const canMutateLifecycle = lockState.status === "editable" && draftState.status === "ready" && !isDirty && !lifecycleWorking;
+  const canPreview = canMutateLifecycle && Boolean(draftState.status === "ready" && draftState.draft.draftHash);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -157,19 +180,23 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
       setSaveState({ message: "请填写标题后再保存草稿。", status: "error" });
       return;
     }
+    if (!form.summary.trim()) {
+      setSaveState({ message: "请填写摘要后再保存草稿。", status: "error" });
+      return;
+    }
 
     setSaveState({ status: "saving" });
     try {
       const draft = await saveContentDraft({
         csrf,
-        draft: mergeContentDraftForm(draftState.draft.draft, form),
+        draft: mergeContentDraftForm(draftState.draft.draft, form, resourceKind),
         kind: resourceKind,
         lockToken,
         resourceId,
         version: draftState.draft.version,
       });
       setDraftState({ draft, status: "ready" });
-      setForm(contentDraftToForm(draft.draft));
+      setForm(contentDraftToForm(draft.draft, resourceKind));
       setSaveState({ savedAt: draft.updatedAt, status: "saved" });
     } catch (error) {
       setSaveState({ message: getSafeSaveError(error), status: "error" });
@@ -190,7 +217,94 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
     }
   }
 
-  function updateField(field: keyof ContentDraftForm, value: string) {
+  async function reloadDraft() {
+    const draft = await getContentDraft(resourceKind, resourceId);
+    setDraftState({ draft, status: "ready" });
+    setForm(contentDraftToForm(draft.draft, resourceKind));
+    setSaveState({ status: "idle" });
+    return draft;
+  }
+
+  async function handlePreview() {
+    const csrf = csrfRef.current;
+    const lockToken = lockTokenRef.current;
+    if (!csrf || !lockToken || !canPreview || draftState.status !== "ready" || !draftState.draft.draftHash) return;
+
+    const previewWindow = window.open("about:blank", "_blank");
+    if (previewWindow) previewWindow.opener = null;
+    setLifecycleState({ action: "preview", status: "working" });
+    try {
+      const previewToken = await createContentPreview({
+        csrf,
+        draftHash: draftState.draft.draftHash,
+        kind: resourceKind,
+        lockToken,
+        resourceId,
+      });
+      const previewUrl = `/admin/preview/content/${resourceKind}/${resourceId}/${encodeURIComponent(previewToken)}`;
+      if (previewWindow) previewWindow.location.replace(previewUrl);
+      else window.location.assign(previewUrl);
+      setLifecycleState({ message: previewWindow ? "预览已在新窗口打开。" : "正在进入预览。", status: "success" });
+    } catch (error) {
+      previewWindow?.close();
+      setLifecycleState({ message: getSafeLifecycleError("预览生成失败", error), status: "error" });
+    }
+  }
+
+  async function handlePublish(changeSummary: string) {
+    const csrf = csrfRef.current;
+    const lockToken = lockTokenRef.current;
+    if (!csrf || !lockToken || !canMutateLifecycle || draftState.status !== "ready") throw new Error("当前草稿尚不能发布。");
+    setLifecycleState({ action: "publish", status: "working" });
+    try {
+      const version = await publishContent({ csrf, changeSummary, kind: resourceKind, lockToken, resourceId, version: draftState.draft.version });
+      await reloadDraft();
+      setLifecycleState({ message: `已发布为版本 ${version.versionNo}。`, status: "success" });
+    } catch (error) {
+      setLifecycleState({ status: "idle" });
+      throw new Error(getSafeLifecycleError("发布失败", error));
+    }
+  }
+
+  async function handleRollback(target: ContentVersion, changeSummary: string) {
+    const csrf = csrfRef.current;
+    const lockToken = lockTokenRef.current;
+    if (!csrf || !lockToken || !canMutateLifecycle || draftState.status !== "ready") throw new Error("当前草稿尚不能回滚。");
+    setLifecycleState({ action: "rollback", status: "working" });
+    try {
+      const version = await rollbackContent({
+        changeSummary,
+        csrf,
+        kind: resourceKind,
+        lockToken,
+        resourceId,
+        targetVersionId: target.id,
+        version: draftState.draft.version,
+      });
+      await reloadDraft();
+      setLifecycleState({ message: `已回滚并生成版本 ${version.versionNo}。`, status: "success" });
+    } catch (error) {
+      setLifecycleState({ status: "idle" });
+      throw new Error(getSafeLifecycleError("回滚失败", error));
+    }
+  }
+
+  async function handleOffline(reason: string) {
+    const csrf = csrfRef.current;
+    const lockToken = lockTokenRef.current;
+    if (!csrf || !lockToken || !canMutateLifecycle || draftState.status !== "ready") throw new Error("当前内容尚不能下线。");
+    setLifecycleState({ action: "offline", status: "working" });
+    try {
+      await offlineContent({ csrf, kind: resourceKind, lockToken, reason, resourceId, version: draftState.draft.version });
+      await reloadDraft();
+      setLifecycleState({ message: `${label}已下线。`, status: "success" });
+    } catch (error) {
+      setLifecycleState({ status: "idle" });
+      throw new Error(getSafeLifecycleError("下线失败", error));
+    }
+  }
+
+  function updateField(field: keyof ContentDraftForm, value: ContentDraftForm[keyof ContentDraftForm]) {
     setForm((current) => current ? { ...current, [field]: value } : current);
     if (saveState.status !== "idle") setSaveState({ status: "idle" });
   }
@@ -212,6 +326,12 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
           ) : null}
           <span className={styles.userName}>{user.displayName}</span>
           <Link className={styles.portalLink} href="/admin/editor?routePath=/">返回页面编辑器</Link>
+          <button className={styles.secondaryButton} disabled={!canPreview} onClick={() => void handlePreview()} type="button">
+            {lifecycleState.status === "working" && lifecycleState.action === "preview" ? "生成预览…" : "预览草稿"}
+          </button>
+          <button className={styles.secondaryButton} disabled={lifecycleWorking} onClick={() => setHistoryOpen(true)} type="button">历史版本</button>
+          <button className={styles.secondaryButton} disabled={!canMutateLifecycle} onClick={() => setOfflineOpen(true)} type="button">下线</button>
+          <button className={styles.publishButton} disabled={!canMutateLifecycle} onClick={() => setPublishOpen(true)} type="button">发布</button>
           <button className={styles.saveButton} disabled={!canSave} onClick={() => void handleSave()} type="button">
             {saveState.status === "saving" ? "正在保存…" : "保存草稿"}
           </button>
@@ -226,7 +346,7 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
             <div><dt>草稿状态</dt><dd>{getDraftStatusLabel(draftState)}</dd></div>
             <div><dt>保存状态</dt><dd>{getSaveStatusLabel(saveState)}</dd></div>
           </dl>
-          <p className={styles.readOnlyNotice}>预览、发布、版本与回滚需等待后端确认详情内容接口的正式响应字段后接入。</p>
+          <p className={styles.readOnlyNotice}>预览、发布、回滚和下线前必须先保存当前草稿；历史版本始终可查看。</p>
         </aside>
 
         <div className={styles.content}>
@@ -234,41 +354,17 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
           {draftState.status === "error" ? <p className={styles.error}>{draftState.message}</p> : null}
           {draftState.status === "ready" && form ? (
             <>
-              <section className={styles.panel} aria-labelledby="base-info-title">
-                <div className={styles.panelHeading}>
-                  <p className={styles.eyebrow}>已确认草稿字段</p>
-                  <h2 id="base-info-title">基本信息</h2>
-                </div>
-                <label className={styles.field} htmlFor="content-title">
-                  <span>标题</span>
-                  <input disabled={lockState.status !== "editable"} id="content-title" onChange={(event) => updateField("title", event.target.value)} value={form.title} />
-                </label>
-                <label className={styles.field} htmlFor="content-summary">
-                  <span>摘要</span>
-                  <textarea disabled={lockState.status !== "editable"} id="content-summary" onChange={(event) => updateField("summary", event.target.value)} rows={5} value={form.summary} />
-                </label>
-              </section>
-
-              <section className={styles.panel} aria-labelledby="seo-title">
-                <div className={styles.panelHeading}>
-                  <p className={styles.eyebrow}>SEO</p>
-                  <h2 id="seo-title">搜索信息</h2>
-                </div>
-                <label className={styles.field} htmlFor="content-seo-title">
-                  <span>SEO 标题</span>
-                  <input disabled={lockState.status !== "editable"} id="content-seo-title" onChange={(event) => updateField("seoTitle", event.target.value)} value={form.seoTitle} />
-                </label>
-                <label className={styles.field} htmlFor="content-seo-keywords">
-                  <span>SEO 关键词</span>
-                  <input disabled={lockState.status !== "editable"} id="content-seo-keywords" onChange={(event) => updateField("seoKeywords", event.target.value)} value={form.seoKeywords} />
-                </label>
-                <label className={styles.field} htmlFor="content-seo-description">
-                  <span>SEO 描述</span>
-                  <textarea disabled={lockState.status !== "editable"} id="content-seo-description" onChange={(event) => updateField("seoDescription", event.target.value)} rows={4} value={form.seoDescription} />
-                </label>
-              </section>
+              <ContentDraftPanels
+                disabled={lockState.status !== "editable"}
+                form={form}
+                onChange={updateField}
+                resourceId={resourceId}
+                resourceKind={resourceKind}
+              />
               {saveState.status === "error" ? <p className={styles.error}>{saveState.message}</p> : null}
               {saveState.status === "saved" ? <p className={styles.success}>草稿已保存：{formatDateTime(saveState.savedAt)}</p> : null}
+              {lifecycleState.status === "error" ? <p className={styles.error}>{lifecycleState.message}</p> : null}
+              {lifecycleState.status === "success" ? <p className={styles.success}>{lifecycleState.message}</p> : null}
             </>
           ) : null}
         </div>
@@ -283,6 +379,17 @@ export function ContentEditorShell({ resourceId, resourceKind, user }: ContentEd
         reason={forceUnlockReason}
         state={forceReleaseState}
       />
+      {publishOpen ? <PublishContentDialog label={label} onClose={() => setPublishOpen(false)} onPublish={handlePublish} /> : null}
+      {historyOpen ? (
+        <ContentVersionHistoryDialog
+          canRollback={canMutateLifecycle}
+          kind={resourceKind}
+          onClose={() => setHistoryOpen(false)}
+          onRollback={handleRollback}
+          resourceId={resourceId}
+        />
+      ) : null}
+      {offlineOpen ? <OfflineContentDialog label={label} onClose={() => setOfflineOpen(false)} onOffline={handleOffline} /> : null}
     </main>
   );
 }
@@ -382,6 +489,10 @@ function getSafeSaveError(error: unknown) {
 
 function getSafeForceReleaseError(error: unknown) {
   return error instanceof Error ? `强制解锁失败：${error.message}` : "强制解锁失败，请稍后重试。";
+}
+
+function getSafeLifecycleError(prefix: string, error: unknown) {
+  return error instanceof Error ? `${prefix}：${error.message}` : `${prefix}，请稍后重试。`;
 }
 
 function formatDateTime(value: string) {

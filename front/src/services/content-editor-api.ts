@@ -8,12 +8,21 @@ import type {
   ContentForceReleaseResult,
   ContentLockConflict,
   ContentResourceKind,
+  ContentVersion,
 } from "@/types/content-editor";
 import type { JsonObject, JsonValue } from "@/types/page-builder";
 
 type SaveContentDraftInput = {
   csrf: CsrfToken;
   draft: JsonObject;
+  kind: ContentResourceKind;
+  lockToken: string;
+  resourceId: number;
+  version: number;
+};
+
+type ContentLifecycleInput = {
+  csrf: CsrfToken;
   kind: ContentResourceKind;
   lockToken: string;
   resourceId: number;
@@ -39,6 +48,89 @@ export function saveContentDraft({ csrf, draft, kind, lockToken, resourceId, ver
     decode: decodeContentDraft,
     init: adminRequestInit("PUT", csrf, { draft, version }, lockToken),
     path: `/admin/api/${endpointSegment}/${encodeURIComponent(String(resourceId))}/draft`,
+  });
+}
+
+export function createContentPreview({
+  csrf,
+  draftHash,
+  kind,
+  lockToken,
+  resourceId,
+}: Omit<ContentLifecycleInput, "version"> & { draftHash: string }) {
+  const { endpointSegment } = getContentResourceDefinition(kind);
+
+  return requestApi({
+    baseUrl: getAdminApiBaseUrl(),
+    decode: requiredString,
+    init: adminRequestInit("POST", csrf, { draftHash }, lockToken),
+    path: `/admin/api/${endpointSegment}/${encodeURIComponent(String(resourceId))}/draft/previews`,
+  });
+}
+
+export function publishContent({
+  changeSummary,
+  csrf,
+  kind,
+  lockToken,
+  resourceId,
+  version,
+}: ContentLifecycleInput & { changeSummary: string }) {
+  const { endpointSegment } = getContentResourceDefinition(kind);
+
+  return requestApi({
+    baseUrl: getAdminApiBaseUrl(),
+    decode: (value) => decodeContentVersion(value, resourceId),
+    init: adminRequestInit("POST", csrf, { changeSummary, version }, lockToken),
+    path: `/admin/api/${endpointSegment}/${encodeURIComponent(String(resourceId))}/publish`,
+  });
+}
+
+export function getContentVersions(kind: ContentResourceKind, resourceId: number) {
+  const { endpointSegment } = getContentResourceDefinition(kind);
+
+  return requestApi({
+    baseUrl: getAdminApiBaseUrl(),
+    decode: (value) => decodeContentVersions(value, resourceId),
+    init: adminRequestInit("GET"),
+    path: `/admin/api/${endpointSegment}/${encodeURIComponent(String(resourceId))}/versions`,
+  });
+}
+
+export function rollbackContent({
+  changeSummary,
+  csrf,
+  kind,
+  lockToken,
+  resourceId,
+  targetVersionId,
+  version,
+}: ContentLifecycleInput & { changeSummary?: string; targetVersionId: number }) {
+  const { endpointSegment } = getContentResourceDefinition(kind);
+
+  return requestApi({
+    baseUrl: getAdminApiBaseUrl(),
+    decode: (value) => decodeContentVersion(value, resourceId),
+    init: adminRequestInit("POST", csrf, { changeSummary, version }, lockToken),
+    path: `/admin/api/${endpointSegment}/${encodeURIComponent(String(resourceId))}/rollback/${encodeURIComponent(String(targetVersionId))}`,
+  });
+}
+
+export function offlineContent({
+  csrf,
+  kind,
+  lockToken,
+  reason,
+  resourceId,
+  version,
+}: ContentLifecycleInput & { reason: string }) {
+  const { endpointSegment } = getContentResourceDefinition(kind);
+
+  return requestApi({
+    baseUrl: getAdminApiBaseUrl(),
+    decode: decodeNull,
+    init: adminRequestInit("POST", csrf, { reason, version }, lockToken),
+    path: `/admin/api/${endpointSegment}/${encodeURIComponent(String(resourceId))}/offline`,
   });
 }
 
@@ -125,7 +217,7 @@ function decodeContentDraft(value: unknown): ContentDraft {
   const record = requiredRecord(value);
 
   return {
-    draft: decodeJsonObject(record.draft),
+    draft: decodeJsonObject(record.draft ?? record.draftJson),
     draftHash: optionalString(record.draftHash),
     id: requiredNumber(record.id),
     updatedAt: requiredString(record.updatedAt),
@@ -157,6 +249,27 @@ function decodeContentForceReleaseResult(value: unknown): ContentForceReleaseRes
   return {
     auditId: requiredNumber(record.auditId),
     releasedAt: requiredString(record.releasedAt),
+  };
+}
+
+function decodeContentVersions(value: unknown, resourceId: number): ContentVersion[] {
+  if (!Array.isArray(value)) throw new Error("Expected a content version list.");
+  return value.map((item) => decodeContentVersion(item, resourceId));
+}
+
+function decodeContentVersion(value: unknown, fallbackResourceId: number): ContentVersion {
+  const record = requiredRecord(value);
+
+  return {
+    changeSummary: optionalString(record.changeSummary),
+    createdAt: optionalString(record.createdAt),
+    id: requiredNumber(record.id),
+    publishedAt: optionalString(record.publishedAt),
+    publisher: optionalString(record.publisher),
+    resourceId: optionalNumber(record.productId) ?? optionalNumber(record.caseId) ?? optionalNumber(record.solutionId) ?? fallbackResourceId,
+    rollbackSourceVersionId: optionalNumber(record.rollbackSourceVersionId),
+    snapshotHash: optionalString(record.snapshotHash),
+    versionNo: requiredNumber(record.versionNo),
   };
 }
 
@@ -202,6 +315,10 @@ function optionalString(value: unknown): string | undefined {
 
 function optionalBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

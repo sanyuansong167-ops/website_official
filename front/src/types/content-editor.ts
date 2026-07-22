@@ -34,3 +34,15 @@ export type ContentDraft = {
   updatedAt: string;
   version: number;
 };
+
+export type ContentVersion = {
+  changeSummary?: string;
+  createdAt?: string;
+  id: number;
+  publishedAt?: string;
+  publisher?: string;
+  resourceId: number;
+  rollbackSourceVersionId?: number;
+  snapshotHash?: string;
+  versionNo: number;
+};
